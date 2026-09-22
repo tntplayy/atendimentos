@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Atendimento</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">
+            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Login - Atendimentos</h1>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">E-mail</label>
+                    <input type="email" id="email" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Senha</label>
+                    <input type="password" id="password" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Entrar</button>
+                <p id="login-error" class="text-red-500 text-sm text-center hidden"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- PAINEL PRINCIPAL (Oculto até logar) -->
+    <div id="app-screen" class="hidden max-w-6xl mx-auto p-4 md:p-8">
+        <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
+            <h1 class="text-xl font-bold">Registro de Atendimentos</h1>
+            <button id="logout-btn" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition">Sair</button>
+        </header>
+
+        <!-- Formulário de Novo Atendimento -->
+        <div class="bg-white p-6 rounded-xl shadow-sm mb-8">
+            <h2 class="text-lg font-semibold mb-4">Novo Atendimento</h2>
+            <form id="atendimento-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input type="text" id="cliente" placeholder="Nome do Cliente" required class="px-3 py-2 border rounded-lg">
+                <input type="text" id="assunto" placeholder="Assunto / Motivo" required class="px-3 py-2 border rounded-lg">
+                <select id="status" class="px-3 py-2 border rounded-lg">
+                    <option value="Pendente">Pendente</option>
+                    <option value="Em Andamento">Em Andamento</option>
+                    <option value="Concluído">Concluído</option>
+                </select>
+                <textarea id="observacoes" placeholder="Observações..." class="md:col-span-3 px-3 py-2 border rounded-lg"></textarea>
+                <button type="submit" class="md:col-span-3 bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 transition">Salvar Atendimento</button>
+            </form>
+        </div>
+
+        <!-- Lista de Atendimentos -->
+        <div class="bg-white p-6 rounded-xl shadow-sm overflow-x-auto">
+            <h2 class="text-lg font-semibold mb-4">Atendimentos Registrados</h2>
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b text-slate-500 text-sm">
+                        <th class="p-3">Data</th>
+                        <th class="p-3">Cliente</th>
+                        <th class="p-3">Assunto</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3">Observações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-atendimentos">
+                    <!-- Preenchido via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Script de Conexão e Lógica -->
+    <script>
+        const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3cHJ4a3dxamZxaWd1cmNyaHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMTIyOTcsImV4cCI6MjEwNTY4ODI5N30.pfBUMwPftOioWCTur_FhX3b7gXfs-7lOVqyVb3ObZes';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const loginScreen = document.getElementById('login-screen');
+        const appScreen = document.getElementById('app-screen');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const logoutBtn = document.getElementById('logout-btn');
+        const atendimentoForm = document.getElementById('atendimento-form');
+        const tabelaAtendimentos = document.getElementById('tabela-atendimentos');
+
+        // Verificar sessão ativa ao carregar
+        async function checkUser() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                showApp();
+            } else {
+                showLogin();
+            }
+        }
+
+        function showLogin() {
+            loginScreen.classList.remove('hidden');
+            appScreen.classList.add('hidden');
+        }
+
+        function showApp() {
+            loginScreen.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+            carregarAtendimentos();
+        }
+
+        // Ação de Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            
+            if (error) {
+                loginError.textContent = 'Erro ao entrar: ' + error.message;
+                loginError.classList.remove('hidden');
+            } else {
+                showApp();
+            }
+        });
+
+        // Ação de Logout
+        logoutBtn.addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            showLogin();
+        });
+
+        // Carregar Dados
+        async function carregarAtendimentos() {
+            const { data, error } = await supabaseClient
+                .from('atendimentos')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Erro ao buscar dados:', error);
+                return;
+            }
+
+            tabelaAtendimentos.innerHTML = '';
+            data.forEach(item => {
+                const dataFormatada = new Date(item.created_at).toLocaleDateString('pt-BR');
+                const row = document.createElement('tr');
+                row.classList.add('border-b', 'hover:bg-slate-50', 'text-sm');
+                row.innerHTML = `
+                    <td class="p-3">${dataFormatada}</td>
+                    <td class="p-3 font-medium">${item.cliente}</td>
+                    <td class="p-3">${item.assunto}</td>
+                    <td class="p-3"><span class="px-2 py-1 rounded text-xs font-semibold ${item.status === 'Concluído' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${item.status}</span></td>
+                    <td class="p-3 text-slate-600">${item.observacoes || '-'}</td>
+                `;
+                tabelaAtendimentos.appendChild(row);
+            });
+        }
+
+        // Inserir Novo Atendimento
+        atendimentoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const cliente = document.getElementById('cliente').value;
+            const assunto = document.getElementById('assunto').value;
+            const status = document.getElementById('status').value;
+            const observacoes = document.getElementById('observacoes').value;
+
+            const { error } = await supabaseClient
+                .from('atendimentos')
+                .insert([{ cliente, assunto, status, observacoes }]);
+
+            if (error) {
+                alert('Erro ao salvar: ' + error.message);
+            } else {
+                atendimentoForm.reset();
+                carregarAtendimentos();
+            }
+        });
+
+        checkUser();
+    </script>
+</body>
+</html>
