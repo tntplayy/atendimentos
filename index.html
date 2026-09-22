@@ -6,31 +6,27 @@
     <title>Painel de Atendimento</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS Client (Versão atualizada) -->
+    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
 
-    <!-- TELA DE LOGIN -->
+    <!-- TELA DE LOGIN (Senha Simples) -->
     <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">
-            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Login - Atendimentos</h1>
+            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Painel Protegido</h1>
             <form id="login-form" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">E-mail</label>
-                    <input type="email" id="email" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Senha</label>
-                    <input type="password" id="password" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium mb-1">Digite a Senha de Acesso</label>
+                    <input type="password" id="access-password" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Sua senha">
                 </div>
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Entrar</button>
-                <p id="login-error" class="text-red-500 text-sm text-center hidden"></p>
+                <p id="login-error" class="text-red-500 text-sm text-center hidden">Senha incorreta!</p>
             </form>
         </div>
     </div>
 
-    <!-- PAINEL PRINCIPAL (Oculto até logar) -->
+    <!-- PAINEL PRINCIPAL (Oculto até colocar a senha certa) -->
     <div id="app-screen" class="hidden max-w-6xl mx-auto p-4 md:p-8">
         <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
             <h1 class="text-xl font-bold">Registro de Atendimentos</h1>
@@ -75,15 +71,13 @@
 
     <!-- Script de Conexão e Lógica -->
     <script>
+        // DEFINA A SUA SENHA DE ACESSO AQUI:
+        const SENHA_MESTRA = "sua_senha_aqui"; 
+
         const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_eqmxa7hRSYUNfhi0CYiTXA_mWCiswes';
         
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                persistSession: true,
-                autoRefreshToken: true,
-            }
-        });
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app-screen');
@@ -93,19 +87,9 @@
         const atendimentoForm = document.getElementById('atendimento-form');
         const tabelaAtendimentos = document.getElementById('tabela-atendimentos');
 
-        // Verificar sessão ativa ao carregar
-        async function checkUser() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                showApp();
-            } else {
-                showLogin();
-            }
-        }
-
-        function showLogin() {
-            loginScreen.classList.remove('hidden');
-            appScreen.classList.add('hidden');
+        // Verificar se já estava logado na sessão do navegador
+        if (localStorage.getItem('painel_logado') === 'true') {
+            showApp();
         }
 
         function showApp() {
@@ -114,29 +98,28 @@
             carregarAtendimentos();
         }
 
-        // Ação de Login
-        loginForm.addEventListener('submit', async (e) => {
+        // Validação da Senha
+        loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+            const senhaDigitada = document.getElementById('access-password').value;
 
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            
-            if (error) {
-                loginError.textContent = 'Erro ao entrar: ' + error.message;
-                loginError.classList.remove('hidden');
-            } else {
+            if (senhaDigitada === SENHA_MESTRA) {
+                localStorage.setItem('painel_logado', 'true');
                 showApp();
+            } else {
+                loginError.classList.remove('hidden');
             }
         });
 
-        // Ação de Logout
-        logoutBtn.addEventListener('click', async () => {
-            await supabaseClient.auth.signOut();
-            showLogin();
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('painel_logado');
+            document.getElementById('access-password').value = '';
+            loginScreen.classList.remove('hidden');
+            appScreen.classList.add('hidden');
         });
 
-        // Carregar Dados
+        // Carregar Dados do Supabase
         async function carregarAtendimentos() {
             const { data, error } = await supabaseClient
                 .from('atendimentos')
@@ -145,6 +128,7 @@
 
             if (error) {
                 console.error('Erro ao buscar dados:', error);
+                alert('Erro ao carregar dados do banco.');
                 return;
             }
 
@@ -183,8 +167,6 @@
                 carregarAtendimentos();
             }
         });
-
-        checkUser();
     </script>
 </body>
 </html>
