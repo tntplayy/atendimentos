@@ -6,7 +6,7 @@
     <title>Painel de Atendimento</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS Client -->
+    <!-- Supabase JS Client (Versão 2) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
@@ -76,9 +76,15 @@
     <!-- Script de Conexão e Lógica -->
     <script>
         const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3cHJ4a3dxamZxaWd1cmNyaHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMTIyOTcsImV4cCI6MjEwNTY4ODI5N30.pfBUMwPftOioWCTur_FhX3b7gXfs-7lOVqyVb3ObZes';
+        const SUPABASE_ANON_KEY = 'sb_publishable_eqmxa7hRSYUNfhi0CYiTXA_mWCiswes';
         
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Inicialização com suporte ao novo formato de chaves
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+            }
+        });
 
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app-screen');
