@@ -11,21 +11,21 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
 
-    <!-- TELA DE LOGIN (E-mail e Senha) -->
+    <!-- TELA DE LOGIN OFICIAL DO SUPABASE -->
     <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">
-            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Painel de Atendimento</h1>
+            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Login - Supabase Auth</h1>
             <form id="login-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">E-mail</label>
-                    <input type="email" id="login-email" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="seu@email.com">
+                    <input type="email" id="email" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="seu@email.com">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Senha</label>
-                    <input type="password" id="login-senha" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Sua senha">
+                    <input type="password" id="password" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Sua senha">
                 </div>
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Entrar</button>
-                <p id="login-error" class="text-red-500 text-sm text-center hidden">E-mail ou senha incorretos!</p>
+                <p id="login-error" class="text-red-500 text-sm text-center hidden mt-2"></p>
             </form>
         </div>
     </div>
@@ -88,9 +88,19 @@
         const atendimentoForm = document.getElementById('atendimento-form');
         const tabelaAtendimentos = document.getElementById('tabela-atendimentos');
 
-        // Verificar se já estava logado na sessão do navegador
-        if (localStorage.getItem('painel_logado') === 'true') {
-            showApp();
+        // Verificar se já existe uma sessão ativa do Supabase Auth
+        async function checkSession() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                showApp();
+            } else {
+                showLogin();
+            }
+        }
+
+        function showLogin() {
+            loginScreen.classList.remove('hidden');
+            appScreen.classList.add('hidden');
         }
 
         function showApp() {
@@ -99,38 +109,33 @@
             carregarAtendimentos();
         }
 
-        // Validação de E-mail e Senha direto na tabela do Supabase
+        // Login oficial usando o Supabase Auth
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const emailInput = document.getElementById('login-email').value;
-            const senhaInput = document.getElementById('login-senha').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
 
-            const { data, error } = await supabaseClient
-                .from('usuarios')
-                .select('*')
-                .eq('email', emailInput)
-                .eq('senha', senhaInput)
-                .single();
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
 
-            if (error || !data) {
+            if (error) {
+                loginError.textContent = 'Erro: ' + error.message;
                 loginError.classList.remove('hidden');
             } else {
                 loginError.classList.add('hidden');
-                localStorage.setItem('painel_logado', 'true');
                 showApp();
             }
         });
 
-        // Logout
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('painel_logado');
-            document.getElementById('login-email').value = '';
-            document.getElementById('login-senha').value = '';
-            loginScreen.classList.remove('hidden');
-            appScreen.classList.add('hidden');
+        // Logout do Supabase Auth
+        logoutBtn.addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            showLogin();
         });
 
-        // Carregar Dados do Supabase
+        // Carregar Dados (Protegidos pelas políticas RLS da tabela atendimentos)
         async function carregarAtendimentos() {
             const { data, error } = await supabaseClient
                 .from('atendimentos')
@@ -177,6 +182,9 @@
                 carregarAtendimentos();
             }
         });
+
+        // Executa a verificação ao carregar a página
+        checkSession();
     </script>
 </body>
 </html>
