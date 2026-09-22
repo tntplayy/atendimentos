@@ -11,22 +11,26 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
 
-    <!-- TELA DE LOGIN (Senha Simples) -->
+    <!-- TELA DE LOGIN (E-mail e Senha) -->
     <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">
-            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Painel Protegido</h1>
+            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Painel de Atendimento</h1>
             <form id="login-form" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Digite a Senha de Acesso</label>
-                    <input type="password" id="access-password" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Sua senha">
+                    <label class="block text-sm font-medium mb-1">E-mail</label>
+                    <input type="email" id="login-email" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="seu@email.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Senha</label>
+                    <input type="password" id="login-senha" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Sua senha">
                 </div>
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Entrar</button>
-                <p id="login-error" class="text-red-500 text-sm text-center hidden">Senha incorreta!</p>
+                <p id="login-error" class="text-red-500 text-sm text-center hidden">E-mail ou senha incorretos!</p>
             </form>
         </div>
     </div>
 
-    <!-- PAINEL PRINCIPAL (Oculto até colocar a senha certa) -->
+    <!-- PAINEL PRINCIPAL (Oculto até logar) -->
     <div id="app-screen" class="hidden max-w-6xl mx-auto p-4 md:p-8">
         <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
             <h1 class="text-xl font-bold">Registro de Atendimentos</h1>
@@ -71,9 +75,6 @@
 
     <!-- Script de Conexão e Lógica -->
     <script>
-        // DEFINA A SUA SENHA DE ACESSO AQUI:
-        const SENHA_MESTRA = "sua_senha_aqui"; 
-
         const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_eqmxa7hRSYUNfhi0CYiTXA_mWCiswes';
         
@@ -98,23 +99,33 @@
             carregarAtendimentos();
         }
 
-        // Validação da Senha
-        loginForm.addEventListener('submit', (e) => {
+        // Validação de E-mail e Senha direto na tabela do Supabase
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const senhaDigitada = document.getElementById('access-password').value;
+            const emailInput = document.getElementById('login-email').value;
+            const senhaInput = document.getElementById('login-senha').value;
 
-            if (senhaDigitada === SENHA_MESTRA) {
+            const { data, error } = await supabaseClient
+                .from('usuarios')
+                .select('*')
+                .eq('email', emailInput)
+                .eq('senha', senhaInput)
+                .single();
+
+            if (error || !data) {
+                loginError.classList.remove('hidden');
+            } else {
+                loginError.classList.add('hidden');
                 localStorage.setItem('painel_logado', 'true');
                 showApp();
-            } else {
-                loginError.classList.remove('hidden');
             }
         });
 
         // Logout
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('painel_logado');
-            document.getElementById('access-password').value = '';
+            document.getElementById('login-email').value = '';
+            document.getElementById('login-senha').value = '';
             loginScreen.classList.remove('hidden');
             appScreen.classList.add('hidden');
         });
@@ -128,7 +139,6 @@
 
             if (error) {
                 console.error('Erro ao buscar dados:', error);
-                alert('Erro ao carregar dados do banco.');
                 return;
             }
 
