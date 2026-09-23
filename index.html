@@ -11,10 +11,10 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
 
-    <!-- TELA DE LOGIN OFICIAL DO SUPABASE -->
+    <!-- TELA DE LOGIN -->
     <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">
-            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Login - Supabase Auth</h1>
+            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Login - Atendimento</h1>
             <form id="login-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">E-mail</label>
@@ -78,7 +78,12 @@
         const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_eqmxa7hRSYUNfhi0CYiTXA_mWCiswes';
         
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+            }
+        });
 
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app-screen');
@@ -88,7 +93,7 @@
         const atendimentoForm = document.getElementById('atendimento-form');
         const tabelaAtendimentos = document.getElementById('tabela-atendimentos');
 
-        // Verificar se já existe uma sessão ativa do Supabase Auth
+        // Verificar sessão ativa
         async function checkSession() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
@@ -109,7 +114,7 @@
             carregarAtendimentos();
         }
 
-        // Login oficial usando o Supabase Auth
+        // Login com E-mail e Senha
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
@@ -121,7 +126,7 @@
             });
 
             if (error) {
-                loginError.textContent = 'Erro: ' + error.message;
+                loginError.textContent = 'Erro ao entrar: ' + error.message;
                 loginError.classList.remove('hidden');
             } else {
                 loginError.classList.add('hidden');
@@ -129,13 +134,13 @@
             }
         });
 
-        // Logout do Supabase Auth
+        // Logout
         logoutBtn.addEventListener('click', async () => {
             await supabaseClient.auth.signOut();
             showLogin();
         });
 
-        // Carregar Dados (Protegidos pelas políticas RLS da tabela atendimentos)
+        // Carregar Dados
         async function carregarAtendimentos() {
             const { data, error } = await supabaseClient
                 .from('atendimentos')
@@ -183,7 +188,6 @@
             }
         });
 
-        // Executa a verificação ao carregar a página
         checkSession();
     </script>
 </body>
