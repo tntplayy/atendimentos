@@ -78,10 +78,17 @@
         const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_eqmxa7hRSYUNfhi0CYiTXA_mWCiswes';
         
+        // Inicialização com suporte correto para o novo padrão de chaves publicáveis do Supabase Auth
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
                 persistSession: true,
                 autoRefreshToken: true,
+                detectSessionInUrl: true
+            },
+            global: {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY
+                }
             }
         });
 
@@ -93,7 +100,7 @@
         const atendimentoForm = document.getElementById('atendimento-form');
         const tabelaAtendimentos = document.getElementById('tabela-atendimentos');
 
-        // Verificar sessão ativa
+        // Verificar sessão ativa do Supabase Auth
         async function checkSession() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
@@ -114,7 +121,7 @@
             carregarAtendimentos();
         }
 
-        // Login com E-mail e Senha
+        // Login Oficial do Supabase Auth
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
@@ -134,13 +141,13 @@
             }
         });
 
-        // Logout
+        // Logout do Supabase Auth
         logoutBtn.addEventListener('click', async () => {
             await supabaseClient.auth.signOut();
             showLogin();
         });
 
-        // Carregar Dados
+        // Carregar Dados (Protegidos pelas políticas RLS)
         async function carregarAtendimentos() {
             const { data, error } = await supabaseClient
                 .from('atendimentos')
