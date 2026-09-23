@@ -1,182 +1,263 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Painel de Atendimento</title>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS Client -->
+
+    <!-- React e ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel para React JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800">
+<body class="bg-[#090d16] text-slate-100 min-h-screen">
+    <div id="root"></div>
 
-    <!-- TELA DE LOGIN -->
-    <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">
-            <h1 class="text-2xl font-bold mb-6 text-center text-slate-900">Login - Atendimento</h1>
-            <form id="login-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">E-mail</label>
-                    <input type="email" id="email" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="seu@email.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Senha</label>
-                    <input type="password" id="password" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Sua senha">
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Entrar</button>
-                <p id="login-error" class="text-red-500 text-sm text-center hidden mt-2">E-mail ou senha incorretos!</p>
-            </form>
-        </div>
-    </div>
+    <!-- Script da Aplicação em React -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-    <!-- PAINEL PRINCIPAL (Oculto até logar) -->
-    <div id="app-screen" class="hidden max-w-6xl mx-auto p-4 md:p-8">
-        <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
-            <h1 class="text-xl font-bold">Registro de Atendimentos</h1>
-            <button id="logout-btn" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition">Sair</button>
-        </header>
-
-        <!-- Formulário de Novo Atendimento -->
-        <div class="bg-white p-6 rounded-xl shadow-sm mb-8">
-            <h2 class="text-lg font-semibold mb-4">Novo Atendimento</h2>
-            <form id="atendimento-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input type="text" id="cliente" placeholder="Nome do Cliente" required class="px-3 py-2 border rounded-lg">
-                <input type="text" id="assunto" placeholder="Assunto / Motivo" required class="px-3 py-2 border rounded-lg">
-                <select id="status" class="px-3 py-2 border rounded-lg">
-                    <option value="Pendente">Pendente</option>
-                    <option value="Em Andamento">Em Andamento</option>
-                    <option value="Concluído">Concluído</option>
-                </select>
-                <textarea id="observacoes" placeholder="Observações..." class="md:col-span-3 px-3 py-2 border rounded-lg"></textarea>
-                <button type="submit" class="md:col-span-3 bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 transition">Salvar Atendimento</button>
-            </form>
-        </div>
-
-        <!-- Lista de Atendimentos -->
-        <div class="bg-white p-6 rounded-xl shadow-sm overflow-x-auto">
-            <h2 class="text-lg font-semibold mb-4">Atendimentos Registrados</h2>
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="border-b text-slate-500 text-sm">
-                        <th class="p-3">Data</th>
-                        <th class="p-3">Cliente</th>
-                        <th class="p-3">Assunto</th>
-                        <th class="p-3">Status</th>
-                        <th class="p-3">Observações</th>
-                    </tr>
-                </thead>
-                <tbody id="tabela-atendimentos">
-                    <!-- Preenchido via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Script de Conexão e Lógica -->
-    <script>
+        // Configuração do Supabase com suporte ao Auth oficial
         const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_eqmxa7hRSYUNfhi0CYiTXA_mWCiswes';
         
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        const loginScreen = document.getElementById('login-screen');
-        const appScreen = document.getElementById('app-screen');
-        const loginForm = document.getElementById('login-form');
-        const loginError = document.getElementById('login-error');
-        const logoutBtn = document.getElementById('logout-btn');
-        const atendimentoForm = document.getElementById('atendimento-form');
-        const tabelaAtendimentos = document.getElementById('tabela-atendimentos');
-
-        // Verificar se já estava logado na sessão do navegador
-        if (localStorage.getItem('painel_logado') === 'true') {
-            showApp();
-        }
-
-        function showApp() {
-            loginScreen.classList.add('hidden');
-            appScreen.classList.remove('hidden');
-            carregarAtendimentos();
-        }
-
-        // Validação de E-mail e Senha direto na tabela de utilizadores do Supabase
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const emailInput = document.getElementById('email').value;
-            const senhaInput = document.getElementById('password').value;
-
-            const { data, error } = await supabaseClient
-                .from('usuarios')
-                .select('*')
-                .eq('email', emailInput)
-                .eq('senha', senhaInput)
-                .single();
-
-            if (error || !data) {
-                loginError.classList.remove('hidden');
-            } else {
-                loginError.classList.add('hidden');
-                localStorage.setItem('painel_logado', 'true');
-                showApp();
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true
+            },
+            global: {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY
+                }
             }
         });
 
-        // Logout
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('painel_logado');
-            document.getElementById('email').value = '';
-            document.getElementById('password').value = '';
-            loginScreen.classList.remove('hidden');
-            appScreen.classList.add('hidden');
-        });
+        function App() {
+            const [user, setUser] = useState(null);
+            const [email, setEmail] = useState('');
+            const [senha, setSenha] = useState('');
+            const [erroLogin, setErroLogin] = useState('');
 
-        // Carregar Dados
-        async function carregarAtendimentos() {
-            const { data, error } = await supabaseClient
-                .from('atendimentos')
-                .select('*')
-                .order('created_at', { ascending: false });
+            // Estados do Painel
+            const [atendimentos, setAtendimentos] = useState([]);
+            const [cliente, setCliente] = useState('');
+            const [assunto, setAssunto] = useState('');
+            const [status, setStatus] = useState('Pendente');
+            const [observacoes, setObservacoes] = useState('');
 
-            if (error) {
-                console.error('Erro ao buscar dados:', error);
-                return;
+            // Verificar sessão ativa do Supabase Auth ao carregar
+            useEffect(() => {
+                supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    if (session) {
+                        setUser(session.user);
+                        carregarAtendimentos();
+                    }
+                });
+
+                // Ouvir mudanças de autenticação (login/logout)
+                const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+                    setUser(session ? session.user : null);
+                    if (session) {
+                        carregarAtendimentos();
+                    }
+                });
+
+                return () => subscription.unsubscribe();
+            }, []);
+
+            // Função de Login oficial do Supabase Auth
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setErroLogin('');
+
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: senha,
+                });
+
+                if (error) {
+                    setErroLogin('Erro ao entrar: ' + error.message);
+                } else {
+                    setUser(data.user);
+                    carregarAtendimentos();
+                }
+            };
+
+            // Logout oficial
+            const handleLogout = async () => {
+                await supabaseClient.auth.signOut();
+                setUser(null);
+                setEmail('');
+                setSenha('');
+            };
+
+            // Carregar Atendimentos do Supabase
+            const carregarAtendimentos = async () => {
+                const { data, error } = await supabaseClient
+                    .from('atendimentos')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (!error && data) {
+                    setAtendimentos(data);
+                }
+            };
+
+            // Salvar Novo Atendimento
+            const handleSubmitAtendimento = async (e) => {
+                e.preventDefault();
+                const { error } = await supabaseClient
+                    .from('atendimentos')
+                    .insert([{ cliente, assunto, status, observacoes }]);
+
+                if (error) {
+                    alert('Erro ao salvar: ' + error.message);
+                } else {
+                    setCliente('');
+                    setAssunto('');
+                    setStatus('Pendente');
+                    setObservacoes('');
+                    carregarAtendimentos();
+                }
+            };
+
+            // TELA DE LOGIN (Se não estiver autenticado)
+            if (!user) {
+                return (
+                    <div className="flex items-center justify-center min-h-screen p-4">
+                        <div className="bg-[#121826] border border-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-sm">
+                            <h1 className="text-2xl font-bold mb-6 text-center text-white">Login - Atendimento</h1>
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-slate-300">E-mail</label>
+                                    <input 
+                                        type="email" 
+                                        value={email} 
+                                        onChange={(e) => setEmail(e.target.value)} 
+                                        required 
+                                        className="w-full px-3 py-2 bg-[#090d16] border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500" 
+                                        placeholder="seu@email.com"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-slate-300">Senha</label>
+                                    <input 
+                                        type="password" 
+                                        value={senha} 
+                                        onChange={(e) => setSenha(e.target.value)} 
+                                        required 
+                                        className="w-full px-3 py-2 bg-[#090d16] border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500" 
+                                        placeholder="Sua senha"
+                                    />
+                                </div>
+                                {erroLogin && <p className="text-red-400 text-sm text-center">{erroLogin}</p>}
+                                <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Entrar</button>
+                            </form>
+                        </div>
+                    </div>
+                );
             }
 
-            tabelaAtendimentos.innerHTML = '';
-            data.forEach(item => {
-                const dataFormatada = new Date(item.created_at).toLocaleDateString('pt-BR');
-                const row = document.createElement('tr');
-                row.classList.add('border-b', 'hover:bg-slate-50', 'text-sm');
-                row.innerHTML = `
-                    <td class="p-3">${dataFormatada}</td>
-                    <td class="p-3 font-medium">${item.cliente}</td>
-                    <td class="p-3">${item.assunto}</td>
-                    <td class="p-3"><span class="px-2 py-1 rounded text-xs font-semibold ${item.status === 'Concluído' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${item.status}</span></td>
-                    <td class="p-3 text-slate-600">${item.observacoes || '-'}</td>
-                `;
-                tabelaAtendimentos.appendChild(row);
-            });
+            // PAINEL PRINCIPAL
+            return (
+                <div className="max-w-6xl mx-auto p-4 md:p-8">
+                    <header className="flex justify-between items-center mb-8 bg-[#121826] border border-slate-800 p-4 rounded-xl shadow-md">
+                        <div>
+                            <h1 className="text-xl font-bold text-white">Registro de Atendimentos</h1>
+                            <p className="text-xs text-slate-400">Logado como: {user.email}</p>
+                        </div>
+                        <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition">Sair</button>
+                    </header>
+
+                    {/* Formulário */}
+                    <div className="bg-[#121826] border border-slate-800 p-6 rounded-xl shadow-md mb-8">
+                        <h2 className="text-lg font-semibold mb-4 text-white">Novo Atendimento</h2>
+                        <form onSubmit={handleSubmitAtendimento} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input 
+                                type="text" 
+                                placeholder="Nome do Cliente" 
+                                value={cliente} 
+                                onChange={(e) => setCliente(e.target.value)} 
+                                required 
+                                className="px-3 py-2 bg-[#090d16] border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500" 
+                            />
+                            <input 
+                                type="text" 
+                                placeholder="Assunto / Motivo" 
+                                value={assunto} 
+                                onChange={(e) => setAssunto(e.target.value)} 
+                                required 
+                                className="px-3 py-2 bg-[#090d16] border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500" 
+                            />
+                            <select 
+                                value={status} 
+                                onChange={(e) => setStatus(e.target.value)} 
+                                className="px-3 py-2 bg-[#090d16] border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                            >
+                                <option value="Pendente">Pendente</option>
+                                <option value="Em Andamento">Em Andamento</option>
+                                <option value="Concluído">Concluído</option>
+                            </select>
+                            <textarea 
+                                placeholder="Observações..." 
+                                value={observacoes} 
+                                onChange={(e) => setObservacoes(e.target.value)} 
+                                className="md:col-span-3 px-3 py-2 bg-[#090d16] border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                            ></textarea>
+                            <button type="submit" className="md:col-span-3 bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 transition">Salvar Atendimento</button>
+                        </form>
+                    </div>
+
+                    {/* Tabela de Registros */}
+                    <div className="bg-[#121826] border border-slate-800 p-6 rounded-xl shadow-md overflow-x-auto">
+                        <h2 className="text-lg font-semibold mb-4 text-white">Atendimentos Registrados</h2>
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-slate-800 text-slate-400 text-sm">
+                                    <th className="p-3">Data</th>
+                                    <th className="p-3">Cliente</th>
+                                    <th className="p-3">Assunto</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">Observações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {atendimentos.map((item) => (
+                                    <tr key={item.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 text-sm">
+                                        <td className="p-3 text-slate-300">{new Date(item.created_at).toLocaleDateString('pt-BR')}</td>
+                                        <td className="p-3 font-medium text-white">{item.cliente}</td>
+                                        <td className="p-3 text-slate-300">{item.assunto}</td>
+                                        <td className="p-3">
+                                            <span className={`px-2 py-1 rounded text-xs font-semibold ${item.status === 'Concluído' ? 'bg-green-900/50 text-green-300 border border-green-700' : 'bg-amber-900/50 text-amber-300 border border-amber-700'}`}>
+                                                {item.status}
+                                            </span>
+                                        </td>
+                                        <td className="p-3 text-slate-400">{item.observacoes || '-'}</td>
+                                    </tr>
+                                ))}
+                                {atendimentos.length === 0 && (
+                                    <tr>
+                                        <td colSpan="5" className="p-4 text-center text-slate-500">Nenhum atendimento registrado.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
         }
 
-        // Inserir Novo Atendimento
-        atendimentoForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const cliente = document.getElementById('cliente').value;
-            const assunto = document.getElementById('assunto').value;
-            const status = document.getElementById('status').value;
-            const observacoes = document.getElementById('observacoes').value;
-
-            const { error } = await supabaseClient
-                .from('atendimentos')
-                .insert([{ cliente, assunto, status, observacoes }]);
-
-            if (error) {
-                alert('Erro ao salvar: ' + error.message);
-            } else {
-                atendimentoForm.reset();
-                carregarAtendimentos();
-            }
-        });
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
