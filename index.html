@@ -25,23 +25,11 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Configuração do Supabase com o endpoint de Auth explícito para evitar o Failed to fetch
+        // Usando a chave JWT tradicional para compatibilidade total com o Auth
         const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_eqmxa7hRSYUNfhi0CYiTXA_mWCiswes';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3cHJ4a3dxamZxaWd1cmNyaHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMTIyOTcsImV4cCI6MjEwNTY4ODI5N30.pfBUMwPftOioWCTur_FhX3b7gXfs-7lOVqyVb3ObZes';
         
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                persistSession: true,
-                autoRefreshToken: true,
-                detectSessionInUrl: true,
-                storage: window.localStorage
-            },
-            realtime: {
-                params: {
-                    eventsPerSecond: 10
-                }
-            }
-        });
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function App() {
             const [user, setUser] = useState(null);
@@ -49,14 +37,12 @@
             const [senha, setSenha] = useState('');
             const [erroLogin, setErroLogin] = useState('');
 
-            // Estados do Painel
             const [atendimentos, setAtendimentos] = useState([]);
             const [cliente, setCliente] = useState('');
             const [assunto, setAssunto] = useState('');
             const [status, setStatus] = useState('Pendente');
             const [observacoes, setObservacoes] = useState('');
 
-            // Verificar sessão ativa do Supabase Auth ao carregar
             useEffect(() => {
                 supabaseClient.auth.getSession().then(({ data: { session } }) => {
                     if (session) {
@@ -75,29 +61,23 @@
                 return () => subscription.unsubscribe();
             }, []);
 
-            // Função de Login oficial do Supabase Auth
             const handleLogin = async (e) => {
                 e.preventDefault();
                 setErroLogin('');
 
-                try {
-                    const { data, error } = await supabaseClient.auth.signInWithPassword({
-                        email: email.trim(),
-                        password: senha,
-                    });
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email.trim(),
+                    password: senha,
+                });
 
-                    if (error) {
-                        setErroLogin('Erro ao entrar: ' + error.message);
-                    } else if (data && data.user) {
-                        setUser(data.user);
-                        carregarAtendimentos();
-                    }
-                } catch (err) {
-                    setErroLogin('Erro de conexão com o servidor.');
+                if (error) {
+                    setErroLogin('E-mail ou senha incorretos.');
+                } else if (data && data.user) {
+                    setUser(data.user);
+                    carregarAtendimentos();
                 }
             };
 
-            // Logout oficial
             const handleLogout = async () => {
                 await supabaseClient.auth.signOut();
                 setUser(null);
@@ -105,7 +85,6 @@
                 setSenha('');
             };
 
-            // Carregar Atendimentos do Supabase
             const carregarAtendimentos = async () => {
                 const { data, error } = await supabaseClient
                     .from('atendimentos')
@@ -117,7 +96,6 @@
                 }
             };
 
-            // Salvar Novo Atendimento
             const handleSubmitAtendimento = async (e) => {
                 e.preventDefault();
                 const { error } = await supabaseClient
@@ -135,7 +113,6 @@
                 }
             };
 
-            // TELA DE LOGIN
             if (!user) {
                 return (
                     <div className="flex items-center justify-center min-h-screen p-4">
@@ -172,7 +149,6 @@
                 );
             }
 
-            // PAINEL PRINCIPAL
             return (
                 <div className="max-w-6xl mx-auto p-4 md:p-8">
                     <header className="flex justify-between items-center mb-8 bg-[#121826] border border-slate-800 p-4 rounded-xl shadow-md">
@@ -183,7 +159,6 @@
                         <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition">Sair</button>
                     </header>
 
-                    {/* Formulário */}
                     <div className="bg-[#121826] border border-slate-800 p-6 rounded-xl shadow-md mb-8">
                         <h2 className="text-lg font-semibold mb-4 text-white">Novo Atendimento</h2>
                         <form onSubmit={handleSubmitAtendimento} className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -222,7 +197,6 @@
                         </form>
                     </div>
 
-                    {/* Tabela de Registros */}
                     <div className="bg-[#121826] border border-slate-800 p-6 rounded-xl shadow-md overflow-x-auto">
                         <h2 className="text-lg font-semibold mb-4 text-white">Atendimentos Registrados</h2>
                         <table className="w-full text-left border-collapse">
