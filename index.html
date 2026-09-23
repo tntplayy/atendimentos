@@ -25,7 +25,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Configuração do Supabase com suporte ao Auth oficial
+        // Configuração do Supabase com o endpoint de Auth explícito para evitar o Failed to fetch
         const SUPABASE_URL = 'https://dwprxkwqjfquigurchpx.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_eqmxa7hRSYUNfhi0CYiTXA_mWCiswes';
         
@@ -33,11 +33,12 @@
             auth: {
                 persistSession: true,
                 autoRefreshToken: true,
-                detectSessionInUrl: true
+                detectSessionInUrl: true,
+                storage: window.localStorage
             },
-            global: {
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY
+            realtime: {
+                params: {
+                    eventsPerSecond: 10
                 }
             }
         });
@@ -64,7 +65,6 @@
                     }
                 });
 
-                // Ouvir mudanças de autenticação (login/logout)
                 const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
                     setUser(session ? session.user : null);
                     if (session) {
@@ -80,16 +80,20 @@
                 e.preventDefault();
                 setErroLogin('');
 
-                const { data, error } = await supabaseClient.auth.signInWithPassword({
-                    email: email,
-                    password: senha,
-                });
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
+                        email: email.trim(),
+                        password: senha,
+                    });
 
-                if (error) {
-                    setErroLogin('Erro ao entrar: ' + error.message);
-                } else {
-                    setUser(data.user);
-                    carregarAtendimentos();
+                    if (error) {
+                        setErroLogin('Erro ao entrar: ' + error.message);
+                    } else if (data && data.user) {
+                        setUser(data.user);
+                        carregarAtendimentos();
+                    }
+                } catch (err) {
+                    setErroLogin('Erro de conexão com o servidor.');
                 }
             };
 
@@ -131,7 +135,7 @@
                 }
             };
 
-            // TELA DE LOGIN (Se não estiver autenticado)
+            // TELA DE LOGIN
             if (!user) {
                 return (
                     <div className="flex items-center justify-center min-h-screen p-4">
